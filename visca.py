@@ -6,6 +6,7 @@ import socket
 import binascii # for printing the messages we send, not really necessary
 from time import sleep
 from tkinter import *
+from multiprocessing import Process
 
 # for receiving
 buffer_size = 1024
@@ -115,16 +116,27 @@ class App:
     ip = '127.0.0.1'
     port = '52381'
     
-    socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # IPv4, UDP
+    out_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # IPv4, UDP
+    in_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # IPv4, UDP
+    in_socket.bind(('', int(port)))
 
     def __init__(self):
         # start by resetting the sequence number
         self.reset_sequence_number()
+        self.listener = Process(target=self.listen)
+        self.listener.start()
         self.run()
 
-    def callback(self):
-        self.root.quit()
-        
+    def listen(self):
+        while True:
+            message, address = self.in_socket.recvfrom(1024)
+            print('Received data from:', address, '\n', message)
+
+    def close(self):
+        self.listener.terminate()
+        self.listener.join()
+        self.root.destroy()
+
     def recall(self, memory_number):
         message_string = RECALL.format(memory_number)
         self.send_message(INFO_OFF) # otherwise we see a message on the camera output
@@ -168,7 +180,7 @@ class App:
         message = payload_type + payload_length + self.sequence_number.to_bytes(4, 'big') + payload
         
         self.sequence_number += 1
-        self.socket.sendto(message, (self.ip, int(self.port)))
+        self.out_socket.sendto(message, (self.ip, int(self.port)))
         print('Sent Message', message)
         # TODO: add a timeout in case we don't hear back
         '''
@@ -193,7 +205,7 @@ class App:
 
     def reset_sequence_number(self):
         reset_sequence_number_message = bytearray.fromhex('02 00 00 01 00 00 00 01 01')
-        self.socket.sendto(reset_sequence_number_message,(self.ip, int(self.port)))
+        self.out_socket.sendto(reset_sequence_number_message,(self.ip, int(self.port)))
         self.sequence_number = 1
         return self.sequence_number
 
@@ -207,6 +219,7 @@ class App:
             self.add_cam_buttons()
             Button(self.root, text='Connect', command=self.reset_sequence_number()).grid(row=1, column=6)
             Button(self.root, text='Cam On', command=lambda: self.send_message(camera_on)).grid(row=2, column=6)
+            Button(self.root, text='Cam Off', command=lambda: self.send_message(camera_off)).grid(row=3, column=6)
 
             Label(self.root, text='Presets').grid(row=1, column=0, columnspan=2)
             Button(self.root, text=0, command=lambda: self.recall(0)).grid(row=2, column=0)
@@ -245,6 +258,7 @@ class App:
             # Connection Label
             Label(self.root, textvariable=display_message).grid(row=6, column=4, columnspan=3)
 
+        self.root.protocol("WM_DELETE_WINDOW", self.close)
         self.root.mainloop()
 
 app = App()
