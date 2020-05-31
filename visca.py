@@ -347,11 +347,11 @@ class App:
     def add_buttons(self, buttons, start_col=0, start_row=0, max_col=2):
         row = start_row
         col = start_col
-        for button in buttons:
-            message = button['message']
+        for button_data in buttons:
+            message = button_data['message']
             button = Button(
                 self.joystick,
-                text=button['text'],
+                text=button_data['text'],
                 bg='black',
                 fg='white',
             )
@@ -360,8 +360,8 @@ class App:
                 '<ButtonPress-1>',
                 lambda event, message=message: self.send_message(message())
             )
-            if 'stop_message' in button:
-                message = button['stop_message']
+            if 'stop_message' in button_data:
+                message = button_data['stop_message']
                 button.bind(
                     '<ButtonRelease-1>',
                     lambda event, message=message: self.send_message(message())
