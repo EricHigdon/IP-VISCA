@@ -88,7 +88,47 @@ def pan_down_right():
     
 def pan_stop():
     return format_pan_tilt('81 01 06 01 {} {} 03 03 FF')
-    
+
+
+JOYSTICK_BUTTONS = [
+    {
+        'text': '↖',
+        'direction': pan_up_left
+    },
+    {
+        'text': '↑',
+        'direction': pan_up
+    },
+    {
+        'text': '↗',
+        'direction': pan_up_right
+    },
+    {
+        'text': '←',
+        'direction': pan_left
+    },
+    {
+        'text': 'Stop',
+        'direction': pan_stop
+    },
+    {
+        'text': '→',
+        'direction': pan_right
+    },
+    {
+        'text': '↙',
+        'direction': pan_down_left
+    },
+    {
+        'text': '↓',
+        'direction': pan_down
+    },
+    {
+        'text': '↘',
+        'direction': pan_down_right
+    }
+]
+
 #pan_absolute_position = '81 01 06 02 VV WW 0Y 0Y 0Y 0Y 0Z 0Z 0Z 0Z FF'.replace('VV', str(VV)) #YYYY[0]
 #pan_relative_position = '81 01 06 03 VV WW 0Y 0Y 0Y 0Y 0Z 0Z 0Z 0Z FF'.replace('VV', str(VV))
 pan_home = '81 01 06 04 FF'
@@ -125,8 +165,8 @@ class App:
     def __init__(self):
         # start by resetting the sequence number
         self.reset_sequence_number()
-        self.listener = Process(target=self.listen)
-        self.listener.start()
+        #self.listener = Process(target=self.listen)
+        #self.listener.start()
         self.run()
 
     def listen(self):
@@ -141,8 +181,8 @@ class App:
                 continue
 
     def close(self):
-        self.listener.terminate()
-        self.listener.join()
+        #self.listener.terminate()
+        #self.listener.join()
         self.root.destroy()
 
     def recall(self, memory_number):
@@ -219,10 +259,10 @@ class App:
         self.sequence_number += 1
         self.out_socket.sendto(message, (self.ip, int(self.port)))
         print('Sent Message', message)
+        '''
         _, self.rcvport = self.out_socket.getsockname()
         print('set rcvport to', self.rcvport, type(self.rcvport))
         # TODO: add a timeout in case we don't hear back
-        '''
         try:
             data = s.recvfrom(buffer_size)
             received_message = binascii.hexlify(data[0])
@@ -248,6 +288,38 @@ class App:
         self.sequence_number = 1
         return self.sequence_number
 
+    def start_move(self, direction):
+        self.send_message(direction)
+
+    def stop_move(self):
+        self.send_message(pan_stop())
+
+    def add_joystick_buttons(self):
+        row = 0
+        col = 0
+        for button in JOYSTICK_BUTTONS:
+            direction = button['direction']
+            button = Button(
+                self.joystick,
+                text=button['text'],
+                bg='black',
+                fg='white',
+            )
+            button.grid(row=row, column=col)
+            button.bind(
+                '<ButtonPress-1>',
+                lambda event, direction=direction: self.send_message(direction())
+            )
+            button.bind(
+                '<ButtonRelease-1>',
+                lambda event: self.stop_move()
+            )
+            if col == 2:
+                col = 0
+                row += 1
+            else:
+                col += 1
+
     def run(self):
         # GUI
         if self.root is None:
@@ -271,67 +343,11 @@ class App:
             #Label(self.root, text='Presets').grid(row=1, column=0, columnspan=2)
             self.add_preset_buttons()
 
-            joystick = Frame(self.root, bg='black')
+            self.joystick = Frame(self.root, bg='black')
 
-            Button(
-                joystick,
-                text='↖',
-                bg='black',
-                fg='white',
-                command=lambda: self.send_message(pan_up_left())
-            ).grid(row=0, column=0)
-            Button(joystick,
-                text='↑',
-                bg='black',
-                fg='white',
-                command=lambda: self.send_message(pan_up())
-            ).grid(row=0, column=1)
-            Button(joystick,
-                text='↗',
-                bg='black',
-                fg='white',
-                command=lambda: self.send_message(pan_up_right())
-            ).grid(row=0, column=2)
+            self.add_joystick_buttons()
 
-            Button(joystick,
-                text='←',
-                bg='black',
-                fg='white',
-                command=lambda: self.send_message(pan_left())
-            ).grid(row=1, column=0)
-            Button(joystick,
-                text='Stop',
-                bg='black',
-                fg='white',
-                command=lambda: self.send_message(pan_stop())
-            ).grid(row=1, column=1)
-            Button(joystick,
-                text='→',
-                bg='black',
-                fg='white',
-                command=lambda: self.send_message(pan_right())
-            ).grid(row=1, column=2)
-
-            Button(joystick,
-                text='↙',
-                bg='black',
-                fg='white',
-                command=lambda: self.send_message(pan_down_left())
-            ).grid(row=2, column=0)
-            Button(joystick,
-                text='↓',
-                bg='black',
-                fg='white',
-                command=lambda: self.send_message(pan_down())
-            ).grid(row=2, column=1)
-            Button(joystick,
-                text='↘',
-                bg='black',
-                fg='white',
-                command=lambda: self.send_message(pan_down_right())
-            ).grid(row=2, column=2)
-
-            Button(joystick,
+            Button(self.joystick,
                 text='Home',
                 bg='black',
                 fg='white',
@@ -340,7 +356,7 @@ class App:
 
             ## slider to set speed for pan_speed and tilt_speed (0x01 to 0x17)
             ## still not quite sure about this...
-            scale = Scale(joystick,
+            scale = Scale(self.joystick,
                 from_=1,
                 to=17,
                 bg='black',
@@ -351,45 +367,45 @@ class App:
             scale.grid(row=4, column=0, columnspan=3)
             scale.set(movement_speed)
 
-            Button(joystick,
+            Button(self.joystick,
                 text='Zoom In',
                 bg='black',
                 fg='white',
                 command=lambda: self.send_message(zoom_tele)
             ).grid(row=0, column=3)
-            Button(joystick,
+            Button(self.joystick,
                 text='Zoom Stop',
                 bg='black',
                 fg='white',
                 command=lambda: self.send_message(zoom_stop)
             ).grid(row=0, column=4)
-            Button(joystick,
+            Button(self.joystick,
                 text='Zoom Out',
                 bg='black',
                 fg='white',
                 command=lambda: self.send_message(zoom_wide)
             ).grid(row=0, column=5)
 
-            Button(joystick,
+            Button(self.joystick,
                 text='Focus Near',
                 bg='black',
                 fg='white',
                 command=lambda: self.send_message(focus_near)
             ).grid(row=1, column=3)
-            Button(joystick,
+            Button(self.joystick,
                 text='Focus Far',
                 bg='black',
                 fg='white',
                 command=lambda: self.send_message(focus_far)
             ).grid(row=1, column=4)
 
-            Button(joystick,
+            Button(self.joystick,
                 text='Cam On',
                 bg='black',
                 fg='white',
                 command=lambda: self.send_message(camera_on)
             ).grid(row=2, column=3)
-            Button(joystick,
+            Button(self.joystick,
                 text='Cam Off',
                 bg='black',
                 fg='white',
@@ -397,7 +413,7 @@ class App:
             ).grid(row=2, column=4)
 
 
-            joystick.grid(row=5, column=3)
+            self.joystick.grid(row=5, column=3)
 
 
 
