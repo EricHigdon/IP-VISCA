@@ -6,6 +6,7 @@ import socket
 import binascii # for printing the messages we send, not really necessary
 from time import sleep
 from tkinter import *
+from tkinter import font
 from multiprocessing import Process
 
 # for receiving
@@ -112,29 +113,36 @@ focus_infinity = '81 01 04 18 02 FF'
 
 class App:
     root = None
-    ips = ['127.0.0.1:52381']
-    ip = '127.0.0.1'
+    ips = ['192.168.50.68:52381']
+    ip = '192.168.50.68'
     port = '52381'
+    rcvport = 0
     
     out_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # IPv4, UDP
-    in_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # IPv4, UDP
-    in_socket.bind(('', int(port)))
+    out_socket.settimeout(2)
+    
 
     def __init__(self):
         # start by resetting the sequence number
         self.reset_sequence_number()
-        #self.listener = Process(target=self.listen)
-        #self.listener.start()
+        self.listener = Process(target=self.listen)
+        self.listener.start()
         self.run()
 
     def listen(self):
         while True:
-            message, address = self.in_socket.recvfrom(1024)
-            print('Received data from:', address, '\n', message)
+            print('binding to port', self.rcvport, type(self.rcvport))
+            self.out_socket.bind(('', self.rcvport))
+            print('listening on port', self.rcvport)
+            try:
+                message, address = self.out_socket.recvfrom(1024)
+                print('Received data from:', address, '\n', message)
+            except socket.timeout:
+                continue
 
     def close(self):
-        #self.listener.terminate()
-        #self.listener.join()
+        self.listener.terminate()
+        self.listener.join()
         self.root.destroy()
 
     def recall(self, memory_number):
@@ -187,7 +195,18 @@ class App:
             elif i > 7:
                 row = 4
             photo = PhotoImage(file='images/{}.png'.format(i)).subsample(3, 3)
-            Button(self.root, text='Preset {}'.format(i), compound=RIGHT, image=photo, command=lambda i=i: self.recall(i)).grid(row=row, column=col)
+            button_font = font.Font(size=24)
+            Button(
+                self.root,
+                text=i,
+                image=photo,
+                compound=CENTER,
+                width=464,
+                height=261,
+                fg='white',
+                font=button_font,
+                command=lambda i=i: self.recall(i)
+            ).grid(row=row, column=col)
             setattr(self, 'photo_{}'.format(i), photo)
 
     def send_message(self, message_string):
@@ -200,6 +219,8 @@ class App:
         self.sequence_number += 1
         self.out_socket.sendto(message, (self.ip, int(self.port)))
         print('Sent Message', message)
+        _, self.rcvport = self.out_socket.getsockname()
+        print('set rcvport to', self.rcvport, type(self.rcvport))
         # TODO: add a timeout in case we don't hear back
         '''
         try:
@@ -237,52 +258,151 @@ class App:
             self.root.columnconfigure(3, weight=1, minsize=75)
             self.root.rowconfigure(2, weight=1, minsize=50)
             self.root.rowconfigure(3, weight=1, minsize=50)
+            self.root.rowconfigure(4, weight=1, minsize=50)
+
+            self.root.configure(bg='black')
 
             display_message = StringVar()
             self.root.title('VISCA IP Camera Controller')
             #Label(self.root, text='VISCA IP Camera Controller').grid(row=0, column=0, columnspan=100)
             self.add_cam_buttons()
             #Button(self.root, text='Connect', command=self.reset_sequence_number()).grid(row=1, column=6)
-            #Button(self.root, text='Cam On', command=lambda: self.send_message(camera_on)).grid(row=2, column=6)
-            #Button(self.root, text='Cam Off', command=lambda: self.send_message(camera_off)).grid(row=3, column=6)
-
+            
             #Label(self.root, text='Presets').grid(row=1, column=0, columnspan=2)
             self.add_preset_buttons()
 
-            joystick = Frame(self.root)
+            joystick = Frame(self.root, bg='black')
 
-            Button(joystick, text='↖', command=lambda: self.send_message(pan_up_left())).grid(row=0, column=0)
-            Button(joystick, text='↑', command=lambda: self.send_message(pan_up())).grid(row=0, column=1)
-            Button(joystick, text='↗', command=lambda: self.send_message(pan_up_right())).grid(row=0, column=2)
+            Button(
+                joystick,
+                text='↖',
+                bg='black',
+                fg='white',
+                command=lambda: self.send_message(pan_up_left())
+            ).grid(row=0, column=0)
+            Button(joystick,
+                text='↑',
+                bg='black',
+                fg='white',
+                command=lambda: self.send_message(pan_up())
+            ).grid(row=0, column=1)
+            Button(joystick,
+                text='↗',
+                bg='black',
+                fg='white',
+                command=lambda: self.send_message(pan_up_right())
+            ).grid(row=0, column=2)
 
-            Button(joystick, text='←', command=lambda: self.send_message(pan_left())).grid(row=1, column=0)
-            Button(joystick, text='Stop', command=lambda: self.send_message(pan_stop())).grid(row=1, column=1)
-            Button(joystick, text='→', command=lambda: self.send_message(pan_right())).grid(row=1, column=2)
+            Button(joystick,
+                text='←',
+                bg='black',
+                fg='white',
+                command=lambda: self.send_message(pan_left())
+            ).grid(row=1, column=0)
+            Button(joystick,
+                text='Stop',
+                bg='black',
+                fg='white',
+                command=lambda: self.send_message(pan_stop())
+            ).grid(row=1, column=1)
+            Button(joystick,
+                text='→',
+                bg='black',
+                fg='white',
+                command=lambda: self.send_message(pan_right())
+            ).grid(row=1, column=2)
 
-            Button(joystick, text='↙', command=lambda: self.send_message(pan_down_left())).grid(row=2, column=0)
-            Button(joystick, text='↓', command=lambda: self.send_message(pan_down())).grid(row=2, column=1)
-            Button(joystick, text='↘', command=lambda: self.send_message(pan_down_right())).grid(row=2, column=2)
+            Button(joystick,
+                text='↙',
+                bg='black',
+                fg='white',
+                command=lambda: self.send_message(pan_down_left())
+            ).grid(row=2, column=0)
+            Button(joystick,
+                text='↓',
+                bg='black',
+                fg='white',
+                command=lambda: self.send_message(pan_down())
+            ).grid(row=2, column=1)
+            Button(joystick,
+                text='↘',
+                bg='black',
+                fg='white',
+                command=lambda: self.send_message(pan_down_right())
+            ).grid(row=2, column=2)
 
-            Button(joystick, text='Home', command=lambda: self.send_message(pan_home)).grid(row=3, column=1)
+            Button(joystick,
+                text='Home',
+                bg='black',
+                fg='white',
+                command=lambda: self.send_message(pan_home)
+            ).grid(row=3, column=1)
 
             ## slider to set speed for pan_speed and tilt_speed (0x01 to 0x17)
             ## still not quite sure about this...
-            scale = Scale(joystick, from_=1, to=17, command=self.set_speed, orient=HORIZONTAL, label='Speed')
+            scale = Scale(joystick,
+                from_=1,
+                to=17,
+                bg='black',
+                fg='white',
+                bd=0,
+                command=self.set_speed, orient=HORIZONTAL, label='Speed'
+            )
             scale.grid(row=4, column=0, columnspan=3)
             scale.set(movement_speed)
 
-            Button(joystick, text='Zoom In', command=lambda: self.send_message(zoom_tele)).grid(row=0, column=3)
-            Button(joystick, text='Zoom Stop', command=lambda: self.send_message(zoom_stop)).grid(row=0, column=4)
-            Button(joystick, text='Zoom Out', command=lambda: self.send_message(zoom_wide)).grid(row=0, column=5)
+            Button(joystick,
+                text='Zoom In',
+                bg='black',
+                fg='white',
+                command=lambda: self.send_message(zoom_tele)
+            ).grid(row=0, column=3)
+            Button(joystick,
+                text='Zoom Stop',
+                bg='black',
+                fg='white',
+                command=lambda: self.send_message(zoom_stop)
+            ).grid(row=0, column=4)
+            Button(joystick,
+                text='Zoom Out',
+                bg='black',
+                fg='white',
+                command=lambda: self.send_message(zoom_wide)
+            ).grid(row=0, column=5)
 
-            Button(joystick, text='Focus Near', command=lambda: self.send_message(focus_near)).grid(row=1, column=3)
-            Button(joystick, text='Focus Far', command=lambda: self.send_message(focus_far)).grid(row=1, column=4)
+            Button(joystick,
+                text='Focus Near',
+                bg='black',
+                fg='white',
+                command=lambda: self.send_message(focus_near)
+            ).grid(row=1, column=3)
+            Button(joystick,
+                text='Focus Far',
+                bg='black',
+                fg='white',
+                command=lambda: self.send_message(focus_far)
+            ).grid(row=1, column=4)
 
-            joystick.grid(row=5, column=0)
+            Button(joystick,
+                text='Cam On',
+                bg='black',
+                fg='white',
+                command=lambda: self.send_message(camera_on)
+            ).grid(row=2, column=3)
+            Button(joystick,
+                text='Cam Off',
+                bg='black',
+                fg='white',
+                command=lambda: self.send_message(camera_off)
+            ).grid(row=2, column=4)
+
+
+            joystick.grid(row=5, column=3)
 
 
 
         self.root.protocol("WM_DELETE_WINDOW", self.close)
         self.root.mainloop()
 
-app = App()
+if __name__ == '__main__':
+    app = App()
