@@ -93,39 +93,80 @@ def pan_stop():
 JOYSTICK_BUTTONS = [
     {
         'text': '↖',
-        'direction': pan_up_left
+        'message': pan_up_left
     },
     {
         'text': '↑',
-        'direction': pan_up
+        'message': pan_up
     },
     {
         'text': '↗',
-        'direction': pan_up_right
+        'message': pan_up_right
     },
     {
         'text': '←',
-        'direction': pan_left
+        'message': pan_left
     },
     {
         'text': 'Stop',
-        'direction': pan_stop
+        'message': pan_stop
     },
     {
         'text': '→',
-        'direction': pan_right
+        'message': pan_right
     },
     {
         'text': '↙',
-        'direction': pan_down_left
+        'message': pan_down_left
     },
     {
         'text': '↓',
-        'direction': pan_down
+        'message': pan_down
     },
     {
         'text': '↘',
-        'direction': pan_down_right
+        'message': pan_down_right
+    }
+]
+
+ZOOM_BUTTONS = [
+    {
+        'text': 'Zoom In',
+        'message': lambda: zoom_tele
+    },
+    {
+        'text': 'Zoom Stop',
+        'message': lambda: zoom_stop
+    },
+    {
+        'text': 'Zoom Out',
+        'message': lambda: zoom_wide
+    }
+]
+
+FOCUS_BUTTONS = [
+    {
+        'text': 'Focus +',
+        'message': lambda: focus_near
+    },
+    {
+        'text': 'Focus Stop',
+        'message': lambda: focus_stop
+    },
+    {
+        'text': 'Focus -',
+        'message': lambda: focus_far
+    }
+]
+
+POWER_BUTTONS = [
+    {
+        'text': 'Camera On',
+        'message': lambda: camera_on
+    },
+    {
+        'text': 'Camera Off',
+        'message': lambda: camera_off
     }
 ]
 
@@ -294,11 +335,11 @@ class App:
     def stop_move(self):
         self.send_message(pan_stop())
 
-    def add_joystick_buttons(self):
-        row = 0
-        col = 0
-        for button in JOYSTICK_BUTTONS:
-            direction = button['direction']
+    def add_buttons(self, buttons, start_col=0, start_row=0, max_col=2):
+        row = start_row
+        col = start_col
+        for button in buttons:
+            message = button['message']
             button = Button(
                 self.joystick,
                 text=button['text'],
@@ -308,17 +349,18 @@ class App:
             button.grid(row=row, column=col)
             button.bind(
                 '<ButtonPress-1>',
-                lambda event, direction=direction: self.send_message(direction())
+                lambda event, message=message: self.send_message(message())
             )
             button.bind(
                 '<ButtonRelease-1>',
                 lambda event: self.stop_move()
             )
-            if col == 2:
+            if col == max_col:
                 col = 0
                 row += 1
             else:
                 col += 1
+
 
     def run(self):
         # GUI
@@ -345,7 +387,10 @@ class App:
 
             self.joystick = Frame(self.root, bg='black')
 
-            self.add_joystick_buttons()
+            self.add_buttons(JOYSTICK_BUTTONS)
+            self.add_buttons(ZOOM_BUTTONS, start_col=3, max_col=5)
+            self.add_buttons(FOCUS_BUTTONS, start_col=3, start_row=1, max_col=5)
+            self.add_buttons(POWER_BUTTONS, start_col=3, start_row=2, max_col=5)
 
             Button(self.joystick,
                 text='Home',
@@ -367,55 +412,7 @@ class App:
             scale.grid(row=4, column=0, columnspan=3)
             scale.set(movement_speed)
 
-            Button(self.joystick,
-                text='Zoom In',
-                bg='black',
-                fg='white',
-                command=lambda: self.send_message(zoom_tele)
-            ).grid(row=0, column=3)
-            Button(self.joystick,
-                text='Zoom Stop',
-                bg='black',
-                fg='white',
-                command=lambda: self.send_message(zoom_stop)
-            ).grid(row=0, column=4)
-            Button(self.joystick,
-                text='Zoom Out',
-                bg='black',
-                fg='white',
-                command=lambda: self.send_message(zoom_wide)
-            ).grid(row=0, column=5)
-
-            Button(self.joystick,
-                text='Focus Near',
-                bg='black',
-                fg='white',
-                command=lambda: self.send_message(focus_near)
-            ).grid(row=1, column=3)
-            Button(self.joystick,
-                text='Focus Far',
-                bg='black',
-                fg='white',
-                command=lambda: self.send_message(focus_far)
-            ).grid(row=1, column=4)
-
-            Button(self.joystick,
-                text='Cam On',
-                bg='black',
-                fg='white',
-                command=lambda: self.send_message(camera_on)
-            ).grid(row=2, column=3)
-            Button(self.joystick,
-                text='Cam Off',
-                bg='black',
-                fg='white',
-                command=lambda: self.send_message(camera_off)
-            ).grid(row=2, column=4)
-
-
             self.joystick.grid(row=5, column=3)
-
-
 
         self.root.protocol("WM_DELETE_WINDOW", self.close)
         self.root.mainloop()
