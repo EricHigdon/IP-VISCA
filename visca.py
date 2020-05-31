@@ -93,19 +93,23 @@ def pan_stop():
 JOYSTICK_BUTTONS = [
     {
         'text': '↖',
-        'message': pan_up_left
+        'message': pan_up_left,
+        'stop_message': pan_stop
     },
     {
         'text': '↑',
-        'message': pan_up
+        'message': pan_up,
+        'stop_message': pan_stop
     },
     {
         'text': '↗',
-        'message': pan_up_right
+        'message': pan_up_right,
+        'stop_message': pan_stop
     },
     {
         'text': '←',
-        'message': pan_left
+        'message': pan_left,
+        'stop_message': pan_stop
     },
     {
         'text': 'Stop',
@@ -113,26 +117,31 @@ JOYSTICK_BUTTONS = [
     },
     {
         'text': '→',
-        'message': pan_right
+        'message': pan_right,
+        'stop_message': pan_stop
     },
     {
         'text': '↙',
-        'message': pan_down_left
+        'message': pan_down_left,
+        'stop_message': pan_stop
     },
     {
         'text': '↓',
-        'message': pan_down
+        'message': pan_down,
+        'stop_message': pan_stop
     },
     {
         'text': '↘',
-        'message': pan_down_right
+        'message': pan_down_right,
+        'stop_message': pan_stop
     }
 ]
 
 ZOOM_BUTTONS = [
     {
         'text': 'Zoom In',
-        'message': lambda: zoom_tele
+        'message': lambda: zoom_tele,
+        'stop_message': lambda: zoom_stop
     },
     {
         'text': 'Zoom Stop',
@@ -140,14 +149,16 @@ ZOOM_BUTTONS = [
     },
     {
         'text': 'Zoom Out',
-        'message': lambda: zoom_wide
+        'message': lambda: zoom_wide,
+        'stop_message': lambda: zoom_stop
     }
 ]
 
 FOCUS_BUTTONS = [
     {
         'text': 'Focus +',
-        'message': lambda: focus_near
+        'message': lambda: focus_near,
+        'stop_message': lambda: focus_stop
     },
     {
         'text': 'Focus Stop',
@@ -155,7 +166,8 @@ FOCUS_BUTTONS = [
     },
     {
         'text': 'Focus -',
-        'message': lambda: focus_far
+        'message': lambda: focus_far,
+        'stop_message': lambda: focus_stop
     }
 ]
 
@@ -332,9 +344,6 @@ class App:
     def start_move(self, direction):
         self.send_message(direction)
 
-    def stop_move(self):
-        self.send_message(pan_stop())
-
     def add_buttons(self, buttons, start_col=0, start_row=0, max_col=2):
         row = start_row
         col = start_col
@@ -351,10 +360,12 @@ class App:
                 '<ButtonPress-1>',
                 lambda event, message=message: self.send_message(message())
             )
-            button.bind(
-                '<ButtonRelease-1>',
-                lambda event: self.stop_move()
-            )
+            if 'stop_message' in button:
+                message = button['stop_message']
+                button.bind(
+                    '<ButtonRelease-1>',
+                    lambda event, message=message: self.send_message(message())
+                )
             if col == max_col:
                 col = 0
                 row += 1
