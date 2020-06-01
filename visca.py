@@ -34,9 +34,15 @@ zoom_wide_variable = '81 01 04 07 3p FF' # p=0 (Low) to 7 (High)
 zoom_direct = '81 01 04 47 0p 0q 0r 0s FF' # pqrs: Zoom Position
 
 memory_reset = '81 01 04 3F 00 0p FF'
-SET_MEMORY = '81 01 04 3F 01 0{} FF' # p: Memory number (=0 to F)
+SET_MEMORY = '81 01 04 3F 01 {} FF' # p: Memory number (=0 to F)
 SET_RECALL_SPEED = '81 01 06 01 {} FF'
 RECALL = '81 01 04 3F 02 {} FF' # p: Memory number (=0 to F)
+
+def convert_to_hex(integer):
+    output = hex(int(integer)).replace('0x', '').upper()
+    if len(output) == 1:
+        output = '0{}'.format(output)
+    return output
 
 #Pan-tilt Drive
 # VV: Pan speed setting 0x01 (low speed) to 0x18
@@ -48,8 +54,7 @@ def set_speed(speed):
     global movement_speed
     global pan_speed
     global tilt_speed
-    if len(speed) == 1:
-        speed = '0{}'.format(speed)
+    speed = convert_to_hex(speed)
     movement_speed = pan_speed = tilt_speed = speed
     return movement_speed
 
@@ -239,8 +244,7 @@ class App:
         self.root.destroy()
 
     def recall(self, memory_number):
-        if len(str(memory_number)) == 1:
-            memory_number = '0{}'.format(memory_number)
+        memory_number = convert_to_hex(memory_number)
         message_string = RECALL.format(memory_number)
         self.send_message(INFO_OFF) # otherwise we see a message on the camera output
         sleep(0.25)
@@ -250,6 +254,7 @@ class App:
         return message
 
     def set_memory(self, memory_number):
+        memory_number =convert_to_hex(memory_number)
         message_string = SET_MEMORY.format(memory_number)
         message = self.send_message(message_string)
         return message
@@ -301,6 +306,14 @@ class App:
                 command=lambda i=i: self.recall(i)
             ).grid(row=row, column=col)
             setattr(self, 'photo_{}'.format(i), photo)
+            Button(
+                self.update_preset_frame,
+                text=i,
+                fg='white',
+                bg='black',
+                width=5,
+                command=lambda i=i: self.set_memory(i)
+            ).grid(row=row, column=col)
 
     def send_message(self, message_string):
         #global received_message
@@ -340,9 +353,6 @@ class App:
         self.out_socket.sendto(reset_sequence_number_message,(self.ip, int(self.port)))
         self.sequence_number = 1
         return self.sequence_number
-
-    def start_move(self, direction):
-        self.send_message(direction)
 
     def add_buttons(self, buttons, start_col=0, start_row=0, max_col=2):
         row = start_row
@@ -394,7 +404,10 @@ class App:
             #Button(self.root, text='Connect', command=self.reset_sequence_number()).grid(row=1, column=6)
             
             #Label(self.root, text='Presets').grid(row=1, column=0, columnspan=2)
+            self.update_preset_frame = Frame(self.root, bg='black')
+            Label(self.update_preset_frame, text='Update Presets', fg='white', bg='black').grid(row=0, column=0, columnspan=4)
             self.add_preset_buttons()
+            self.update_preset_frame.grid(row=5, column=0)
 
             self.joystick = Frame(self.root, bg='black')
 
